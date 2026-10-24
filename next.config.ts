@@ -9,9 +9,13 @@ const nextConfig: NextConfig = {
     "playwright",
     "@sparticuz/chromium",
   ],
-  // The compressed chromium binary is read at runtime, so tracing can't see it.
+  // The compressed chromium binary and playwright-core's browsers.json are
+  // read at runtime, so tracing can't see them.
   outputFileTracingIncludes: {
-    "/api/**": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/**": [
+      "./node_modules/@sparticuz/chromium/bin/**",
+      "./node_modules/playwright-core/**",
+    ],
   },
   turbopack: {
     rules: {
