@@ -425,6 +425,27 @@ function oneAtATime<T>(task: () => Promise<T>): Promise<T> {
   return run;
 }
 
+/** Pauses every CSS and Web Animation on the page. Best effort. */
+async function freezeAnimations(page: Page): Promise<void> {
+  const session = await page
+    .context()
+    .newCDPSession(page)
+    .catch(() => null);
+  if (!session) return;
+  try {
+    await bounded(session.send("Animation.enable"), 3_000);
+    await bounded(
+      session.send("Animation.setPlaybackRate", { playbackRate: 0 }),
+      3_000,
+    );
+    // Left attached on purpose: detaching can reset the playback rate. The
+    // session closes with the context.
+  } catch {
+    // A page that can't be frozen is still worth capturing.
+    await session.detach().catch(() => {});
+  }
+}
+
 /**
  * Raw CDP capture. Playwright's page.screenshot waits for web fonts, stable
  * frames and animations to settle; on a CPU-starved serverless instance a
@@ -576,6 +597,12 @@ async function renderViewport(
     3_000,
   ).catch(() => {});
   signal?.throwIfAborted();
+
+  // Stop the clock before measuring and painting. Without a GPU every frame
+  // of an infinite CSS animation (and any blur under it) is rasterized in
+  // software, and on a small instance that starves the evaluate and
+  // screenshot calls that follow.
+  await freezeAnimations(page);
 
   const collected = await bounded(
     page.evaluate<Collected>(`${COLLECT}(${JSON.stringify(kind)})`),
