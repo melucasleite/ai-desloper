@@ -17,7 +17,6 @@ import type {
   Metrics,
   Report,
   Score,
-  Theme,
   UniquenessSignal,
 } from "@/lib/types";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -38,19 +37,11 @@ type ReportInput = Omit<
   "id" | "screenshots" | "snapshotUrl" | "claimToken"
 >;
 
-export interface GenerationRecord {
-  id: string;
-  html: string;
-  score: Score;
-  theme: Theme;
-}
-
 export interface ReportListItem {
   id: string;
   url: string;
   title: string;
   score: number;
-  newScore: number | null;
   createdAt: string;
 }
 
@@ -99,11 +90,6 @@ interface MemoryReport {
 interface MemoryStore {
   reports: Map<string, MemoryReport>;
   interviews: Map<string, InterviewAnswers>;
-  themes: Map<string, { options: Theme[]; chosen: number | null }>;
-  generations: Map<
-    string,
-    (GenerationRecord & { selectedFindingIds: string[]; createdAt: number })[]
-  >;
 }
 
 const globalStore = globalThis as typeof globalThis & {
@@ -114,8 +100,6 @@ function memory(): MemoryStore {
   globalStore.__deslopMemoryStore ??= {
     reports: new Map(),
     interviews: new Map(),
-    themes: new Map(),
-    generations: new Map(),
   };
   return globalStore.__deslopMemoryStore;
 }
@@ -294,7 +278,7 @@ export async function getSnapshot(id: string): Promise<string | null> {
 }
 
 // ---------------------------------------------------------------------------
-// Interview + themes
+// Interview
 // ---------------------------------------------------------------------------
 
 export async function saveInterview(
@@ -316,104 +300,23 @@ export async function saveInterview(
   if (error) throw new Error(`Could not save the interview: ${error.message}`);
 }
 
-export async function saveThemes(
+/** Saved answers for a report. Callers check authorship before showing them. */
+export async function getInterview(
   reportId: string,
-  themes: Theme[],
-  chosen?: number | null,
-): Promise<void> {
-  if (!isUuid(reportId)) return;
-
-  if (!hasSupabase()) {
-    if (!memory().reports.has(reportId)) return;
-    const prev = memory().themes.get(reportId);
-    memory().themes.set(reportId, {
-      options: themes,
-      chosen: chosen === undefined ? (prev?.chosen ?? null) : chosen,
-    });
-    return;
-  }
-
-  // Leaving `chosen` out of the payload keeps whatever was picked before.
-  const { error } = await createAdminClient()
-    .from("themes")
-    .upsert({
-      report_id: reportId,
-      options: toJson(themes),
-      ...(chosen === undefined ? {} : { chosen }),
-    });
-  if (error) throw new Error(`Could not save themes: ${error.message}`);
-}
-
-// ---------------------------------------------------------------------------
-// Generations
-// ---------------------------------------------------------------------------
-
-export async function saveGeneration(
-  reportId: string,
-  g: { html: string; score: Score; selectedFindingIds: string[]; theme: Theme },
-): Promise<{ id: string }> {
-  if (!isUuid(reportId)) throw new Error("Unknown report.");
-
-  if (!hasSupabase()) {
-    const id = randomUUID();
-    const list = memory().generations.get(reportId) ?? [];
-    list.push({
-      id,
-      html: g.html,
-      score: g.score,
-      theme: g.theme,
-      selectedFindingIds: g.selectedFindingIds,
-      createdAt: Date.now(),
-    });
-    memory().generations.set(reportId, list);
-    return { id };
-  }
-
-  const { data, error } = await createAdminClient()
-    .from("generations")
-    .insert({
-      report_id: reportId,
-      html: g.html,
-      new_score: Math.round(g.score.total),
-      score_detail: toJson(g.score),
-      theme: toJson(g.theme),
-      selected_finding_ids: g.selectedFindingIds,
-    })
-    .select("id")
-    .single();
-  if (error || !data) {
-    throw new Error(`Could not save the generated page: ${error?.message}`);
-  }
-  return { id: data.id };
-}
-
-export async function getLatestGeneration(
-  reportId: string,
-): Promise<GenerationRecord | null> {
+): Promise<InterviewAnswers | null> {
   if (!isUuid(reportId)) return null;
 
   if (!hasSupabase()) {
-    const list = memory().generations.get(reportId);
-    const last = list?.[list.length - 1];
-    return last
-      ? { id: last.id, html: last.html, score: last.score, theme: last.theme }
-      : null;
+    return memory().interviews.get(reportId) ?? null;
   }
 
   const { data, error } = await createAdminClient()
-    .from("generations")
-    .select("id, html, score_detail, theme")
+    .from("interviews")
+    .select("answers")
     .eq("report_id", reportId)
-    .order("created_at", { ascending: false })
-    .limit(1)
     .maybeSingle();
   if (error || !data) return null;
-  return {
-    id: data.id,
-    html: data.html,
-    score: data.score_detail as unknown as Score,
-    theme: data.theme as unknown as Theme,
-  };
+  return data.answers as unknown as InterviewAnswers;
 }
 
 // ---------------------------------------------------------------------------
@@ -452,7 +355,7 @@ export async function claimReport(
 }
 
 /**
- * May this caller write interview answers, themes or generations for a report?
+ * May this caller write interview answers for a report?
  * Yes with the report's claim token, or as the signed-in owner of a claimed
  * report. A shared /r/<id> link alone is never enough.
  */
@@ -491,29 +394,20 @@ export async function listReportsForUser(
     return [...store.reports.values()]
       .filter((r) => r.userId === userId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .map((r) => {
-        const gens = store.generations.get(r.report.id);
-        const last = gens?.[gens.length - 1];
-        return {
-          id: r.report.id,
-          url: r.report.url,
-          title: r.report.title,
-          score: Math.round(r.report.score.total),
-          newScore: last ? Math.round(last.score.total) : null,
-          createdAt: r.createdAt,
-        };
-      });
+      .map((r) => ({
+        id: r.report.id,
+        url: r.report.url,
+        title: r.report.title,
+        score: Math.round(r.report.score.total),
+        createdAt: r.createdAt,
+      }));
   }
 
   const { data, error } = await createAdminClient()
     .from("reports")
-    .select(
-      "id, url, title, score, created_at, generations(new_score, created_at)",
-    )
+    .select("id, url, title, score, created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .order("created_at", { referencedTable: "generations", ascending: false })
-    .limit(1, { referencedTable: "generations" })
     .limit(200);
   if (error || !data) return [];
 
@@ -522,7 +416,6 @@ export async function listReportsForUser(
     url: r.url,
     title: r.title,
     score: r.score,
-    newScore: r.generations[0]?.new_score ?? null,
     createdAt: r.created_at,
   }));
 }

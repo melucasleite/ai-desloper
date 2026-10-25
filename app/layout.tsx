@@ -12,7 +12,7 @@ const instrument = Instrument_Sans({
 export const metadata: Metadata = {
   title: "Desloper",
   description:
-    "Paste a landing page. Get a score for how generic it is, then a rebuilt page that could only be yours.",
+    "Paste a landing page. Get a score for how generic it is, every finding, and a prompt your AI can use to fix it.",
 };
 
 export const viewport: Viewport = {

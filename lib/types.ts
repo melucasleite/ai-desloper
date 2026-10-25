@@ -1,4 +1,4 @@
-// Shared contract between the analysis engine, generation, persistence and UI.
+// Shared contract between the analysis engine, the fix prompt, persistence and UI.
 // Every module imports from here; change it deliberately.
 
 export type TenetId =
@@ -137,7 +137,7 @@ export interface Report {
   uniqueness: UniquenessSignal[];
   fiveSecond: FiveSecondTest | null;
   score: Score;
-  /** Facts about the product extracted from the page, kept in the rewrite. */
+  /** Facts about the product extracted from the page, kept by the fix prompt. */
   productFacts: string[];
   screenshots: { desktop: string; mobile: string }; // URLs (signed or data:)
   snapshotUrl: string;
@@ -184,61 +184,15 @@ export interface InterviewAnswers {
 
 export type InterviewKey = keyof InterviewAnswers;
 
-export interface Theme {
-  name: string;
-  premise: string;
-  palette: { name: string; hex: string }[];
-  typography: { display: string; body: string };
-  voice: string;
-  sampleHeadline: string;
-  sectionMetaphors: string[];
-}
-
-/** POST /api/interview body → { reply: string } */
-export interface InterviewAckRequest {
-  reportId: string;
-  key: InterviewKey;
-  question: string;
-  answer: string;
-  answers: InterviewAnswers;
-  productFacts: string[];
-}
-
-/** POST /api/themes body → { themes: Theme[] } */
-export interface ThemesRequest {
+/** POST /api/interview body → 204. Saves the "Make it yours" answers. */
+export interface InterviewSaveRequest {
   reportId: string;
   /** Proof of authorship; without it (or the owner's session) nothing is saved. */
   claimToken?: string;
   answers: InterviewAnswers;
-  report: Pick<
-    Report,
-    "url" | "title" | "productFacts" | "uniqueness" | "findings"
-  >;
 }
 
-/** POST /api/generate body → text/html stream, then a trailing comment
- *  `<!--DESLOP:{"score":Score}-->` once re-scoring finishes. */
-export interface GenerateRequest {
-  /** Proof of authorship; without it (or the owner's session) nothing is saved. */
-  claimToken?: string;
-  reportId: string;
-  answers: InterviewAnswers;
-  theme: Theme;
-  selectedFindingIds: string[];
-  report: Pick<
-    Report,
-    | "url"
-    | "title"
-    | "productFacts"
-    | "uniqueness"
-    | "findings"
-    | "metrics"
-    | "score"
-  >;
-}
-
-export type Stage =
-  "idle" | "analyzing" | "interview" | "findings" | "generating" | "compare";
+export type Stage = "idle" | "analyzing" | "results" | "prompt";
 
 /** Media type of a viewport's full-page screenshot. */
 export function screenshotMime(vp: Pick<ViewportCapture, "screenshotType">) {

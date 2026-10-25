@@ -14,7 +14,7 @@ export default function LoginPage() {
           Keep your reports.
         </h1>
         <p className="mt-3 text-base leading-relaxed text-muted">
-          Sign in to save a report and its rebuilt page, and come back to them
+          Sign in to save a report and your answers, and come back to them
           later. Everything else works without an account.
         </p>
         <div className="mt-8">

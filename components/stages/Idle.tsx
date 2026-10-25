@@ -96,8 +96,8 @@ export default function Idle({ onSubmit, error }: Props) {
           }}
           className="mx-auto mt-4 max-w-md text-center text-lg text-muted"
         >
-          We score how generic it reads, hear your story, and rebuild it so it
-          could only be yours.
+          We score how generic it reads, show you why, and write the prompt your
+          AI needs to fix it.
         </motion.p>
 
         <form

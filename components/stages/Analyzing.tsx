@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import type { AnalyzeEvent, Box, Score } from "@/lib/types";
 import StatusPill from "@/components/StatusPill";
 import StatusFeed from "@/components/StatusFeed";
@@ -18,8 +17,7 @@ interface Props {
       { url: string; fullHeight: number; width: number }
     >
   >;
-  onContinue(): void;
-  /** True once the report is done; the interview may begin earlier. */
+  /** True once the report is done; the results follow on their own. */
   ready: boolean;
 }
 
@@ -47,19 +45,16 @@ export default function Analyzing({
   events,
   score,
   screenshots,
-  onContinue,
   ready,
 }: Props) {
   const { status, box, findings, failed } = useMemo(
     () => deriveState(events),
     [events],
   );
-  const captured = Boolean(screenshots.mobile || screenshots.desktop);
-  const canContinue = ready || (captured && findings >= 1) || findings >= 3;
   const tone = failed ? "error" : ready ? "done" : "working";
 
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pb-36 sm:px-8 lg:pb-16">
+    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pb-16 sm:px-8">
       <div className="flex justify-center pt-2">
         <StatusPill
           layoutId="url-pill"
@@ -119,46 +114,6 @@ export default function Analyzing({
           />
         </div>
       </div>
-
-      <AnimatePresence>
-        {canContinue ? (
-          <motion.div
-            key="continue"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            transition={{ type: "spring", stiffness: 260, damping: 26 }}
-            className="fixed inset-x-0 bottom-0 z-10 flex flex-col items-center gap-2 bg-gradient-to-t from-bg via-bg/90 to-transparent px-5 pt-10 pb-6 lg:static lg:mt-10 lg:bg-none lg:p-0"
-          >
-            <button
-              type="button"
-              onClick={onContinue}
-              className="group inline-flex h-12 items-center gap-2 rounded-full bg-ink px-6 text-[15px] font-medium text-bg transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Tell us your story
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="transition-transform duration-200 group-hover:translate-x-0.5"
-                aria-hidden
-              >
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
-            </button>
-            <p className="text-sm text-muted">
-              {ready
-                ? "Nine short questions. Skip any of them."
-                : "The read keeps going while you answer."}
-            </p>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
     </section>
   );
 }
