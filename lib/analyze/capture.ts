@@ -394,7 +394,10 @@ async function newContext(
     viewport: size,
     screen: size,
     deviceScaleFactor: 1,
-    isMobile: kind === "mobile",
+    // Not isMobile: with mobile emulation, serverless Chromium (no GPU) can
+    // stall forever on the first screenshot of some pages. A 390px viewport
+    // with a phone UA and touch lays out the same for responsive pages.
+    isMobile: false,
     hasTouch: kind === "mobile",
     userAgent: kind === "mobile" ? MOBILE_UA : undefined,
     serviceWorkers: "block",
