@@ -2,9 +2,6 @@
 // resolve through the Vercel AI Gateway (AI_GATEWAY_API_KEY or Vercel OIDC).
 export const MODELS = {
   judge: "anthropic/claude-sonnet-5-5",
-  interview: "anthropic/claude-sonnet-5-5",
-  themes: "anthropic/claude-sonnet-5-5",
-  page: "anthropic/claude-opus-5-5",
 } as const;
 
 export type ModelRole = keyof typeof MODELS;

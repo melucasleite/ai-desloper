@@ -1,16 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import type { Capture, Score, Theme } from "@/lib/types";
+import type { Capture, Score } from "@/lib/types";
 import {
   claimReport,
-  getLatestGeneration,
+  getInterview,
   getReport,
   getSnapshot,
   listReportsForUser,
-  saveGeneration,
   saveInterview,
   saveReport,
-  saveThemes,
 } from "./reports";
 
 // Runs against memory by default. Point it at a local stack to exercise
@@ -25,16 +23,6 @@ const score = (total: number): Score => ({
   tenets: [],
   markersPenalty: 0,
 });
-
-const theme: Theme = {
-  name: "Field notes",
-  premise: "A notebook from the workshop.",
-  palette: [{ name: "Ink", hex: "#111111" }],
-  typography: { display: "Fraunces", body: "Inter" },
-  voice: "Plain",
-  sampleHeadline: "Stop guessing",
-  sectionMetaphors: [],
-};
 
 function capture(): Capture {
   const vp = (viewport: "desktop" | "mobile") => ({
@@ -67,7 +55,7 @@ function capture(): Capture {
 }
 
 describe("reports persistence", () => {
-  it("round-trips a report, generation and claim", async () => {
+  it("round-trips a report, interview and claim", async () => {
     const saved = await saveReport({
       capture: capture(),
       report: {
@@ -102,25 +90,9 @@ describe("reports persistence", () => {
     expect(await getSnapshot(saved.id)).toContain("frozen");
     expect(await getReport("not-a-uuid")).toBeNull();
 
+    expect(await getInterview(saved.id)).toBeNull();
     await saveInterview(saved.id, { story: "garage" });
-    await saveThemes(saved.id, [theme, theme, theme], 1);
-    await saveThemes(saved.id, [theme, theme, theme]);
-
-    expect(await getLatestGeneration(saved.id)).toBeNull();
-    await saveGeneration(saved.id, {
-      html: "<p>one</p>",
-      score: score(40),
-      selectedFindingIds: [],
-      theme,
-    });
-    await new Promise((r) => setTimeout(r, 15));
-    await saveGeneration(saved.id, {
-      html: "<p>two</p>",
-      score: score(14),
-      selectedFindingIds: ["a"],
-      theme,
-    });
-    expect((await getLatestGeneration(saved.id))?.html).toBe("<p>two</p>");
+    expect(await getInterview(saved.id)).toEqual({ story: "garage" });
 
     // Claim needs a real auth user in Supabase mode, so only check it in memory.
     if (!process.env.SUPABASE_SECRET_KEY) {
@@ -132,7 +104,7 @@ describe("reports persistence", () => {
       );
       const list = await listReportsForUser(userId);
       expect(list).toHaveLength(1);
-      expect(list[0]).toMatchObject({ score: 82, newScore: 14 });
+      expect(list[0]).toMatchObject({ score: 82 });
     }
   });
 });

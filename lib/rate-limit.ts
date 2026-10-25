@@ -2,8 +2,7 @@
 //
 // This is in-process memory, so on serverless it only limits within one warm
 // instance. It is a backstop, not the boundary: production should also have a
-// Vercel Firewall rate-limit rule on /api/analyze, /api/generate, /api/themes
-// and /api/interview.
+// Vercel Firewall rate-limit rule on /api/analyze and /api/interview.
 
 interface Bucket {
   tokens: number;
@@ -19,8 +18,6 @@ export interface RateLimit {
 
 export const LIMITS = {
   analyze: { capacity: 6, windowMs: 10 * 60_000 },
-  generate: { capacity: 4, windowMs: 10 * 60_000 },
-  themes: { capacity: 10, windowMs: 10 * 60_000 },
   interview: { capacity: 40, windowMs: 10 * 60_000 },
 } satisfies Record<string, RateLimit>;
 

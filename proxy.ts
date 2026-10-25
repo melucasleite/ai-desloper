@@ -51,6 +51,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Skip static assets, images, and the long-lived streaming/snapshot APIs.
-    "/((?!_next/static|_next/image|favicon.ico|api/analyze|api/generate|api/snapshot|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/analyze|api/snapshot|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml)$).*)",
   ],
 };

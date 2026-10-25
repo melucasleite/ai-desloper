@@ -2,7 +2,7 @@ import type { TenetId } from "@/lib/types";
 
 /**
  * The product's opinion of what makes a great landing page.
- * The judge scores against it and the generator is instructed by it,
+ * The judge scores against it and the fix prompt quotes it,
  * so this one text drives both sides of the app.
  */
 export const DOCTRINE: {

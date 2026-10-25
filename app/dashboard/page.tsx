@@ -51,8 +51,8 @@ async function ReportList() {
         <div className="mt-10 rounded-card border border-dashed border-line px-6 py-12 text-center">
           <p className="text-lg font-medium text-ink">Nothing saved yet.</p>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted">
-            Score a landing page, rebuild it, then hit Save on the comparison.
-            It will show up here.
+            Score a landing page, then hit Save on the results. It will show up
+            here.
           </p>
           <Link
             href="/"
@@ -77,7 +77,7 @@ async function ReportList() {
                     {hostOf(r.url)} · {formatDate(r.createdAt)}
                   </p>
                 </div>
-                <ScoreChange from={r.score} to={r.newScore} />
+                <SlopScore value={r.score} />
               </Link>
             </li>
           ))}
@@ -87,25 +87,14 @@ async function ReportList() {
   );
 }
 
-function ScoreChange({ from, to }: { from: number; to: number | null }) {
+function SlopScore({ value }: { value: number }) {
   return (
     <p
       className="shrink-0 text-right text-sm tabular-nums"
-      aria-label={
-        to === null ? `Slop score ${from}` : `Slop score ${from}, now ${to}`
-      }
+      aria-label={`Slop score ${value}`}
     >
-      <span className="font-semibold text-bad">{from}</span>
-      {to !== null ? (
-        <>
-          <span className="mx-1.5 text-muted" aria-hidden>
-            →
-          </span>
-          <span className="font-semibold text-good">{to}</span>
-        </>
-      ) : (
-        <span className="ml-2 text-muted">not rebuilt</span>
-      )}
+      <span className="font-semibold text-ink">{value}</span>
+      <span className="ml-1.5 text-muted">slop</span>
     </p>
   );
 }

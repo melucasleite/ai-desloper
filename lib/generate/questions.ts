@@ -1,4 +1,4 @@
-// Client-safe: imported by the Interview stage. No server dependencies here.
+// Client-safe: imported by the Prompt stage and lib/fix-prompt. No server dependencies here.
 import type { InterviewKey } from "@/lib/types";
 
 export interface InterviewQuestion {
@@ -43,7 +43,7 @@ export const QUESTIONS: InterviewQuestion[] = [
   {
     key: "culture",
     question: "What music, films or books have shaped how you think?",
-    hint: "Not for name-dropping. Your references set the mood, the rhythm and the type of the theme.",
+    hint: "Not for name-dropping. Your references set the mood and the rhythm of the copy.",
     placeholder:
       "Late-night radio, old field guides, anything by a good documentary editor",
   },
@@ -57,7 +57,7 @@ export const QUESTIONS: InterviewQuestion[] = [
   {
     key: "hobbies",
     question: "What do you do when you are not working on this?",
-    hint: "Hobbies give the theme its materials and its vocabulary. A climber and a baker build very different pages.",
+    hint: "Hobbies give the page its small details and its vocabulary. A climber and a baker write very different pages.",
     placeholder: "Trail running, film photography, fixing old bikes",
   },
   {
