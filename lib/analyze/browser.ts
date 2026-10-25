@@ -9,6 +9,11 @@ const SHARED_ARGS = [
   "--disable-dev-shm-usage",
   "--no-first-run",
   "--mute-audio",
+  // Both viewports render in parallel; a backgrounded page stops producing
+  // frames and its screenshot never returns.
+  "--disable-renderer-backgrounding",
+  "--disable-background-timer-throttling",
+  "--disable-backgrounding-occluded-windows",
   // WebRTC can send UDP straight past the egress proxy; keep it proxied-only.
   "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
   "--webrtc-ip-handling-policy=disable_non_proxied_udp",

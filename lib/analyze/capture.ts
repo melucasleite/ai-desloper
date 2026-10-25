@@ -394,10 +394,7 @@ async function newContext(
     viewport: size,
     screen: size,
     deviceScaleFactor: 1,
-    // Not isMobile: with mobile emulation, serverless Chromium (no GPU) can
-    // stall forever on the first screenshot of some pages. A 390px viewport
-    // with a phone UA and touch lays out the same for responsive pages.
-    isMobile: false,
+    isMobile: kind === "mobile",
     hasTouch: kind === "mobile",
     userAgent: kind === "mobile" ? MOBILE_UA : undefined,
     serviceWorkers: "block",
@@ -477,6 +474,9 @@ async function cdpShot(
   },
   timeoutMs: number,
 ): Promise<Buffer> {
+  // Two pages render at once and only the front one is guaranteed to
+  // produce frames; a background page can wait forever for one.
+  await page.bringToFront().catch(() => {});
   const session = await page.context().newCDPSession(page);
   try {
     const { data } = await bounded(
