@@ -359,17 +359,29 @@ function timeoutError(host: string): Error {
 }
 
 /** Bounds a page call; closing the context (deadline/abort) also rejects it. */
-function bounded<T>(promise: Promise<T>, ms = EVALUATE_TIMEOUT_MS): Promise<T> {
+function bounded<T>(
+  promise: Promise<T>,
+  ms = EVALUATE_TIMEOUT_MS,
+  step = "page call",
+): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const started = Date.now();
   return Promise.race([
     promise,
     new Promise<never>((_, reject) => {
       timer = setTimeout(
-        () => reject(new Error("Timeout: the page stopped responding.")),
+        () =>
+          reject(
+            new Error(`Timeout: ${step} stopped responding after ${ms}ms.`),
+          ),
         ms,
       );
     }),
-  ]).finally(() => clearTimeout(timer));
+  ]).finally(() => {
+    clearTimeout(timer);
+    const took = Date.now() - started;
+    if (took > 2_000) console.info(`[capture] ${step} took ${took}ms`);
+  });
 }
 
 async function newContext(
@@ -473,6 +485,7 @@ async function cdpShot(
         fromSurface: true,
       }),
       timeoutMs,
+      `${opts.width}px ${opts.beyondViewport ? "full-page" : "first-screen"} shot`,
     );
     return Buffer.from(data, "base64");
   } finally {
@@ -566,6 +579,8 @@ async function renderViewport(
   // Read vitals before we scroll: programmatic scrolling would pollute CLS.
   const perf = await bounded(
     page.evaluate<{ cls: number; lcp: number | null }>(READ_PERF),
+    EVALUATE_TIMEOUT_MS,
+    `${kind} vitals`,
   );
 
   if (kind === "mobile") status("Scrolling through to wake up lazy content");
@@ -606,6 +621,8 @@ async function renderViewport(
 
   const collected = await bounded(
     page.evaluate<Collected>(`${COLLECT}(${JSON.stringify(kind)})`),
+    EVALUATE_TIMEOUT_MS,
+    `${kind} collect`,
   );
   signal?.throwIfAborted();
 
@@ -713,7 +730,11 @@ async function runCapture(opts: {
     let html = "";
     let snapshotHtml = "";
     if (opts.snapshot) {
-      html = await bounded(desktop.page.content());
+      html = await bounded(
+        desktop.page.content(),
+        EVALUATE_TIMEOUT_MS,
+        "desktop content",
+      );
       status("Freezing a snapshot of the original, scripts removed");
       const snap = await buildSnapshot(desktop.page, finalUrl, {
         sheets: desktop.sheets,
