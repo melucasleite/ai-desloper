@@ -92,7 +92,8 @@ const READ_PERF = `(() => {
 
 const SCROLL_STEP = `(() => {
   const step = Math.max(200, Math.floor(window.innerHeight * 0.8));
-  window.scrollBy(0, step);
+  // "instant" overrides scroll-behavior: smooth, which would animate each step.
+  window.scrollBy({ top: step, behavior: "instant" });
   return window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
 })()`;
 
@@ -503,13 +504,22 @@ async function renderViewport(
   if (kind === "mobile") status("Scrolling through to wake up lazy content");
   // Driven from here, one synchronous step at a time, so a hostile page can't
   // hold the scroll loop and it still works with JavaScript disabled.
+  // Best effort: a busy main thread (heavy images, animation) can stall a
+  // step, and a partial scroll is better than failing the whole capture.
   const scrollDeadline = Math.min(deadline, Date.now() + 6_000);
   for (let i = 0; i < 60 && Date.now() < scrollDeadline; i++) {
-    const atEnd = await bounded(page.evaluate<boolean>(SCROLL_STEP), 2_000);
+    const atEnd = await bounded(
+      page.evaluate<boolean>(SCROLL_STEP),
+      2_000,
+    ).catch(() => true);
     await page.waitForTimeout(110);
     if (atEnd) break;
   }
-  await bounded(page.evaluate("window.scrollTo(0, 0)"), 2_000);
+  signal?.throwIfAborted();
+  await bounded(
+    page.evaluate('window.scrollTo({ top: 0, behavior: "instant" })'),
+    5_000,
+  ).catch(() => {});
   await page.waitForTimeout(150);
   signal?.throwIfAborted();
   await page
