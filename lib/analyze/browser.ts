@@ -19,15 +19,24 @@ const SHARED_ARGS = [
   "--webrtc-ip-handling-policy=disable_non_proxied_udp",
 ];
 
-// Defaults from @sparticuz/chromium we don't want. --single-process puts the
-// renderer in the browser process, where a screenshot of an emulated mobile
-// viewport can stall indefinitely. The other two weaken the same-origin and
-// mixed-content rules for pages we don't trust.
+// Defaults from @sparticuz/chromium we don't want:
+// - --disable-web-security and --allow-running-insecure-content weaken the
+//   same-origin and mixed-content rules for pages we don't trust.
+// - --single-process and the SwiftShader GPU flags put all painting on one
+//   software GL thread. On Vercel, pages with blur and infinite animations
+//   stalled screenshots for 20s+. Plain software compositing (--disable-gpu)
+//   is enough for 2D landing pages; WebGL content won't render.
 const DROPPED_SERVERLESS_ARGS = new Set([
   "--single-process",
   "--disable-web-security",
   "--allow-running-insecure-content",
+  "--use-gl=angle",
+  "--use-angle=swiftshader",
+  "--enable-unsafe-swiftshader",
+  "--in-process-gpu",
+  "--ignore-gpu-blocklist",
 ]);
+const SERVERLESS_ARGS = ["--disable-gpu"];
 
 function isServerless() {
   return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
@@ -43,6 +52,7 @@ async function launch(): Promise<Browser> {
       executablePath: await Chromium.executablePath(),
       args: [
         ...Chromium.args.filter((arg) => !DROPPED_SERVERLESS_ARGS.has(arg)),
+        ...SERVERLESS_ARGS,
         ...SHARED_ARGS,
       ],
       headless: true,
