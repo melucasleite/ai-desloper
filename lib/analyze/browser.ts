@@ -14,6 +14,16 @@ const SHARED_ARGS = [
   "--webrtc-ip-handling-policy=disable_non_proxied_udp",
 ];
 
+// Defaults from @sparticuz/chromium we don't want. --single-process puts the
+// renderer in the browser process, where a screenshot of an emulated mobile
+// viewport can stall indefinitely. The other two weaken the same-origin and
+// mixed-content rules for pages we don't trust.
+const DROPPED_SERVERLESS_ARGS = new Set([
+  "--single-process",
+  "--disable-web-security",
+  "--allow-running-insecure-content",
+]);
+
 function isServerless() {
   return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 }
@@ -26,7 +36,10 @@ async function launch(): Promise<Browser> {
     ]);
     return chromium.launch({
       executablePath: await Chromium.executablePath(),
-      args: [...Chromium.args, ...SHARED_ARGS],
+      args: [
+        ...Chromium.args.filter((arg) => !DROPPED_SERVERLESS_ARGS.has(arg)),
+        ...SHARED_ARGS,
+      ],
       headless: true,
     });
   }
