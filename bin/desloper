@@ -1,0 +1,4 @@
+#!/bin/sh
+# Runs the CLI from any directory: tsx resolves the "@/" paths through this repo's tsconfig.
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+exec "$ROOT/node_modules/.bin/tsx" --tsconfig "$ROOT/tsconfig.json" "$ROOT/cli/desloper.ts" "$@"

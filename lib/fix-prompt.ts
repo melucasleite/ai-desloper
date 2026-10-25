@@ -50,7 +50,7 @@ export function mobileLengthTarget(mobileScreens: number): number | null {
 }
 
 /** The markers tenet isn't one of the eight principles; it gets its own line. */
-const MARKERS_PRINCIPLE = {
+export const MARKERS_PRINCIPLE = {
   title: "Write like a person, not a template",
   principle:
     "Emoji in headings, emoji bullets, rows of checkmarks and a steady drip of em dashes are the fingerprints of generated copy. Readers notice them before they read a word. Say the thing plainly and let the content carry the page.",

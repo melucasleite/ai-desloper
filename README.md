@@ -61,6 +61,27 @@ npx supabase link --project-ref <ref>
 npx supabase db push --linked
 ```
 
+## Command line and agent skill
+
+The same capture, detectors, score and fix prompt run from a terminal, against any URL, localhost included:
+
+```bash
+bin/desloper analyze http://localhost:3000      # screenshots, findings, a detector-only score
+bin/desloper finish <run-dir> --judgement j.json # blend in a judgement, write fix-prompt.md
+bin/desloper doctrine                            # the eight principles
+bin/desloper analyze readme                      # the README in this directory
+```
+
+A README is scored on six of the principles (no folds, buttons or fonts), plus four checks only Markdown can answer: no example, no install path, a badge wall and a template outline. Its fix prompt edits the README instead of a page.
+
+`--judge` on `analyze` runs the model judge when `AI_GATEWAY_API_KEY` is set. Without it, a coding agent can write the judgement itself: [`skills/desloper/SKILL.md`](skills/desloper/SKILL.md) walks Claude Code through capturing the page, judging it against the doctrine, and applying the fix prompt in whatever repo it is working in. Install it for every repo with:
+
+```bash
+ln -s "$PWD/skills/desloper" ~/.claude/skills/desloper
+```
+
+The command line skips the egress proxy so it can read your own dev server. Keep it on your machine; the web app is the one meant for strangers' URLs.
+
 ## Checks
 
 ```bash
@@ -81,6 +102,8 @@ lib/analyze/            capture, snapshot, egress guard, detectors, judge, score
 lib/fix-prompt.ts       builds the fix prompt, deterministically
 lib/generate/           interview questions, request schemas
 lib/doctrine.ts         what a good page is
+cli/desloper.ts         the command line (bin/desloper runs it from any directory)
+skills/desloper/        the Claude Code skill that drives it
 supabase/migrations/    schema, row-level security, storage bucket
 ```
 

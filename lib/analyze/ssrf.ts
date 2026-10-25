@@ -168,7 +168,9 @@ export type NetworkPolicy =
   /** Live pages: any public http(s) host; private addresses are aborted. */
   | { mode: "public" }
   /** Generated pages: only Google Fonts and https images, plus a fulfilled document. */
-  | { mode: "generated"; documentUrl: string; html: string };
+  | { mode: "generated"; documentUrl: string; html: string }
+  /** The command line, on the owner's machine: any http(s) host, localhost included. */
+  | { mode: "local" };
 
 const GENERATED_ALLOWED_HOSTS = new Set([
   "fonts.googleapis.com",
@@ -222,6 +224,7 @@ export async function guardContext(
       return route.continue();
     }
 
+    if (policy.mode === "local") return route.continue();
     if (!(await isPublicHost(url.hostname)))
       return route.abort("blockedbyclient");
     return route.continue();

@@ -388,7 +388,11 @@ async function newContext(
   kind: ViewportKind,
   policy: NetworkPolicy,
 ): Promise<BrowserContext> {
-  const [browser, proxy] = await Promise.all([getBrowser(), egressProxyUrl()]);
+  // Local runs visit the owner's own dev server, so they skip the public-only proxy.
+  const [browser, proxy] = await Promise.all([
+    getBrowser(),
+    policy.mode === "local" ? null : egressProxyUrl(),
+  ]);
   const size = VIEWPORTS[kind];
   const context = await browser.newContext({
     viewport: size,
@@ -402,7 +406,7 @@ async function newContext(
     // Every request, redirect hop and WebSocket goes through the egress proxy,
     // which enforces the public-IP policy at connect time. Playwright forces
     // loopback through it too (it adds "<-loopback>" to the bypass list).
-    proxy: { server: proxy },
+    proxy: proxy ? { server: proxy } : undefined,
     // Generated pages must work without JS (hard constraint 11), and nothing
     // an LLM wrote should get to run code with our network position.
     javaScriptEnabled: policy.mode !== "generated",
@@ -419,6 +423,7 @@ async function newContext(
     } catch {
       /* unparsable: closed below */
     }
+    if (policy.mode === "local") return ws.connectToServer();
     if (policy.mode === "generated" || !host || !(await isPublicHost(host))) {
       await ws.close().catch(() => {});
       return;
@@ -805,6 +810,29 @@ export async function capturePage(
     `Captured both viewports in ${((Date.now() - started) / 1000).toFixed(1)}s`,
   );
   return { url: safe.href, ...result };
+}
+
+/**
+ * Renders any http(s) URL, localhost included, with no egress guard. Only for
+ * the command line, where the person running it owns the machine.
+ */
+export async function captureLocal(
+  url: string,
+  onStatus: (message: string) => void,
+  signal?: AbortSignal,
+): Promise<Capture> {
+  const target = new URL(url);
+  if (target.protocol !== "http:" && target.protocol !== "https:")
+    throw new Error("Use an http(s) URL, like http://localhost:3000.");
+  const result = await runCapture({
+    target: target.href,
+    policy: { mode: "local" },
+    status: onStatus,
+    signal,
+    verifyFinalHost: false,
+    snapshot: false,
+  });
+  return { url: target.href, ...result };
 }
 
 /** Renders generated HTML with the same collection, for re-scoring our own output. */

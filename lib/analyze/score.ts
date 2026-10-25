@@ -52,10 +52,13 @@ function grade(total: number): Score["grade"] {
 export function scoreReport(
   findings: Finding[],
   judge?: Partial<Record<TenetId, number>> | null,
+  /** Which tenets count and how much; a README uses a subset. */
+  weights: Partial<Record<TenetId, number>> = SCORE_CONFIG.tenetWeights,
 ): Score {
+  const tenetIds = TENET_IDS.filter((t) => weights[t] != null);
   const detectorFindings = findings.filter((f) => f.source === "detector");
 
-  const tenets: TenetScore[] = TENET_IDS.map((tenet) => {
+  const tenets: TenetScore[] = tenetIds.map((tenet) => {
     const detector = Math.round(
       combine(detectorFindings.filter((f) => f.tenet === tenet)),
     );
@@ -74,13 +77,10 @@ export function scoreReport(
     return { tenet, slop, detector, judge: j };
   });
 
-  const weightSum =
-    TENET_IDS.reduce((s, t) => s + SCORE_CONFIG.tenetWeights[t], 0) || 1;
+  const weightSum = tenetIds.reduce((s, t) => s + (weights[t] ?? 0), 0) || 1;
   const base =
-    tenets.reduce(
-      (s, t) => s + t.slop * SCORE_CONFIG.tenetWeights[t.tenet],
-      0,
-    ) / weightSum;
+    tenets.reduce((s, t) => s + t.slop * (weights[t.tenet] ?? 0), 0) /
+    weightSum;
 
   const markers = findings.filter((f) => f.tenet === "markers");
   const markersPenalty =

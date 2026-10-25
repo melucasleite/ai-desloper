@@ -162,7 +162,10 @@ function ctaLabels(capture: Capture): string[] {
   return [...new Set(labels)].slice(0, 20);
 }
 
-function buildContext(capture: Capture, detectorFindings: Finding[]): string {
+export function buildContext(
+  capture: Capture,
+  detectorFindings: Finding[],
+): string {
   const heads = headings(capture)
     .slice(0, 40)
     .map(
@@ -469,4 +472,39 @@ export async function judgePage(
   const facts = dedupe(j.productFacts, 20);
   if (facts.length) result.productFacts = facts;
   return result;
+}
+
+// ---------- judgements written elsewhere ----------
+
+const fiveSecondSchema = blindSchema.extend(compareSchema.shape);
+
+/** The judge's schema, loosened for a judgement written by hand or by another agent. */
+const externalJudgementSchema = z.object({
+  tenetScores: judgeSchema.shape.tenetScores.partial().default({}),
+  findings: judgeSchema.shape.findings.default([]),
+  uniqueness: judgeSchema.shape.uniqueness.default([]),
+  productFacts: judgeSchema.shape.productFacts.default([]),
+  fiveSecond: fiveSecondSchema.nullable().default(null),
+});
+
+/**
+ * Applies a judgement that didn't come from the gateway (the command line has
+ * the coding agent judge instead) with the same checks: quotes must be on the
+ * page, scores are clamped, and facts fall back to the heuristic ones.
+ */
+export function acceptJudgement(raw: unknown, capture: Capture): JudgeResult {
+  const j = externalJudgementSchema.parse(raw);
+  const tenetScores: JudgeResult["tenetScores"] = {};
+  for (const id of TENET_IDS) {
+    const s = j.tenetScores[id];
+    if (s) tenetScores[id] = Math.round(clamp(s.slop));
+  }
+  const facts = dedupe(j.productFacts, 20);
+  return {
+    tenetScores,
+    findings: verifyFindings(j.findings, capture),
+    uniqueness: verifyUniqueness(j.uniqueness, capture),
+    fiveSecond: j.fiveSecond,
+    productFacts: facts.length ? facts : heuristicFacts(capture),
+  };
 }
