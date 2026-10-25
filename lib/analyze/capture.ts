@@ -24,7 +24,7 @@ const MOBILE_UA =
 /** Budget for navigation + settling; screenshots and collection come after. */
 const LOAD_BUDGET_MS = 20_000;
 /** Hard ceiling for a whole capture; past it the contexts are torn down. */
-const HARD_DEADLINE_MS = LOAD_BUDGET_MS + 40_000;
+const HARD_DEADLINE_MS = LOAD_BUDGET_MS + 70_000;
 /** Ceiling for any single in-page evaluate / content read. */
 const EVALUATE_TIMEOUT_MS = 10_000;
 const MAX_SCREENSHOT_HEIGHT = 8_000;
@@ -416,6 +416,15 @@ async function newContext(
   return context;
 }
 
+// Screenshots are CPU-heavy, and on a small serverless instance two running
+// at once starve each other. One at a time, across both viewports.
+let screenshotQueue: Promise<unknown> = Promise.resolve();
+function oneAtATime<T>(task: () => Promise<T>): Promise<T> {
+  const run = screenshotQueue.then(task, task);
+  screenshotQueue = run.catch(() => {});
+  return run;
+}
+
 async function screenshots(page: Page, kind: ViewportKind, fullHeight: number) {
   const { width, height } = VIEWPORTS[kind];
   const clipHeight = Math.max(
@@ -423,28 +432,30 @@ async function screenshots(page: Page, kind: ViewportKind, fullHeight: number) {
     Math.min(fullHeight, MAX_SCREENSHOT_HEIGHT),
   );
   const fullShot = (quality: number) =>
-    page.screenshot({
-      // JPEG keeps a long, photo-heavy page well under the storage limit and
-      // the SSE payload small; only the first viewport (judge input) is PNG.
-      type: "jpeg",
-      quality,
-      fullPage: true,
-      clip: { x: 0, y: 0, width, height: clipHeight },
-      animations: "disabled",
-      caret: "hide",
-      timeout: 20_000,
-    });
-  const [fullFirstTry, first] = await Promise.all([
-    fullShot(70),
+    oneAtATime(() =>
+      page.screenshot({
+        // JPEG keeps a long, photo-heavy page well under the storage limit and
+        // the SSE payload small; only the first viewport (judge input) is PNG.
+        type: "jpeg",
+        quality,
+        fullPage: true,
+        clip: { x: 0, y: 0, width, height: clipHeight },
+        animations: "disabled",
+        caret: "hide",
+        timeout: 25_000,
+      }),
+    );
+  // The first viewport is required (the judge reads it); the full page is not.
+  const first = await oneAtATime(() =>
     page.screenshot({
       type: "png",
       animations: "disabled",
       caret: "hide",
-      timeout: 10_000,
+      timeout: 20_000,
     }),
-  ]);
-  let full: Buffer | null = fullFirstTry;
-  if (full.byteLength > MAX_FULL_SCREENSHOT_BYTES) {
+  );
+  let full: Buffer | null = await fullShot(70).catch(() => null);
+  if (full && full.byteLength > MAX_FULL_SCREENSHOT_BYTES) {
     full = await fullShot(40).catch(() => null);
     if (full && full.byteLength > MAX_FULL_SCREENSHOT_BYTES) full = null;
   }
